@@ -1,5 +1,10 @@
 from pathlib import Path
-import json, shutil, html, os
+import json, shutil, html, os, re
+from urllib.parse import urlsplit
+BASE_PATH=os.environ.get("BASE_PATH", "").strip("/")
+BASE_PATH="/"+BASE_PATH if BASE_PATH else ""
+if BASE_PATH and (not re.fullmatch(r"/[A-Za-z0-9_/-]+", BASE_PATH) or ".." in BASE_PATH):
+    raise ValueError("BASE_PATH must be a safe URL path")
 ROOT=Path(__file__).resolve().parents[1]; OUT=ROOT/'dist'
 CATS={'politics':'Քաղաքականություն','economy':'Տնտեսություն','society':'Հասարակություն','world':'Աշխարհ','sport':'Սպորտ','video':'Տեսանյութեր'}
 articles=json.loads((ROOT/'content/articles.json').read_text())
@@ -12,9 +17,11 @@ if OUT.exists(): shutil.rmtree(OUT)
 shutil.copytree(ROOT/'public',OUT)
 nav='<a href="/">Գլխավոր</a>'+''.join(f'<a href="/section/{k}/">{v}</a>' for k,v in CATS.items())
 def layout(title,body,description='Armenia24․ հայալեզու լրատվական կայքի ցուցադրական տարբերակ։ Բոլոր նյութերը օրինակներ են։'):
- return f'''<!doctype html><html lang="hy"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(title)} | Armenia24</title><meta name="description" content="{esc(description)}"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#142b26"><meta property="og:title" content="{esc(title)} | Armenia24"><meta property="og:description" content="{esc(description)}"><meta property="og:type" content="website"><meta property="og:locale" content="hy_AM"><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head><body><a class="skip" href="#main">Անցնել բովանդակությանը</a><div class="utility"><span>ՀԱՅԱՍՏԱՆԻՑ՝ ԱՇԽԱՐՀԻՆ</span><span>Անկախ հայացք · Հայերեն</span></div><header><a class="logo" href="/" aria-label="Armenia24 գլխավոր">ARMENIA<span>24</span><i></i></a><div class="motto">Լուրեր։ Համատեքստ։<br>Նոր հեռանկար։</div><button id="menu" aria-expanded="false" aria-controls="nav">☰ <span>Բաժիններ</span></button><a class="search-toggle" href="/search/" aria-label="Որոնել">Որոնում ↗</a></header><nav id="nav" aria-label="Հիմնական բաժիններ">{nav}</nav><div class="demo"><b>ՑՈՒՑԱԴՐԱԿԱՆ ՏԱՐԲԵՐԱԿ</b><span>Բոլոր նյութերը օրինակներ են և իրական լուրեր չեն։</span></div><main id="main">{body}</main><footer><a class="logo" href="/">ARMENIA<span>24</span></a><p>Տեղեկատվության նոր հեռանկար։</p><div>{nav}</div><p class="fine">© Armenia24 · Ցուցադրական նախագիծ · Բոլոր նյութերը օրինակներ են։</p></footer></body></html>'''
+ return f'''<!doctype html><html lang="hy"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(title)} | Armenia24</title><meta name="description" content="{esc(description)}"><meta name="robots" content="noindex,nofollow"><meta name="site-base" content="{BASE_PATH}/"><meta name="theme-color" content="#142b26"><meta property="og:title" content="{esc(title)} | Armenia24"><meta property="og:description" content="{esc(description)}"><meta property="og:type" content="website"><meta property="og:locale" content="hy_AM"><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head><body><a class="skip" href="#main">Անցնել բովանդակությանը</a><div class="utility"><span>ՀԱՅԱՍՏԱՆԻՑ՝ ԱՇԽԱՐՀԻՆ</span><span>Անկախ հայացք · Հայերեն</span></div><header><a class="logo" href="/" aria-label="Armenia24 գլխավոր">ARMENIA<span>24</span><i></i></a><div class="motto">Լուրեր։ Համատեքստ։<br>Նոր հեռանկար։</div><button id="menu" aria-expanded="false" aria-controls="nav">☰ <span>Բաժիններ</span></button><a class="search-toggle" href="/search/" aria-label="Որոնել">Որոնում ↗</a></header><nav id="nav" aria-label="Հիմնական բաժիններ">{nav}</nav><div class="demo"><b>ՑՈՒՑԱԴՐԱԿԱՆ ՏԱՐԲԵՐԱԿ</b><span>Բոլոր նյութերը օրինակներ են և իրական լուրեր չեն։</span></div><main id="main">{body}</main><footer><a class="logo" href="/">ARMENIA<span>24</span></a><p>Տեղեկատվության նոր հեռանկար։</p><div>{nav}</div><p class="fine">© Armenia24 · Ցուցադրական նախագիծ · Բոլոր նյութերը օրինակներ են։</p></footer></body></html>'''
 def save(path,text):
- p=OUT/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
+ if path.endswith('.html'):
+  text=re.sub(r'(href|src)="/(?!/)', lambda m: m.group(1)+'="'+BASE_PATH+'/', text)
+ p=OUT/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text,encoding='utf-8')
 def card(a,n=0):
  return f'''<a class="card" href="/news/{a['slug']}/"><div class="thumb tone{n%4}">{'<img loading="lazy" width="800" height="500" src="'+a['image']+'" alt="'+esc(a['imageAlt'])+'">' if a.get('image') else '<span class="abstract">'+['Ա','24','↗','◉'][n%4]+'</span>'}<span class="sample">ՕՐԻՆԱԿ</span></div><div class="meta">{CATS[a['category']]} <span>· {a['time']}</span></div><h3>{a['title']}</h3><p>{a['excerpt']}</p></a>'''
 a=articles[0]
@@ -35,6 +42,8 @@ for a in articles:
  save(f'news/{a["slug"]}/index.html',layout(a['title']+' — օրինակ',body,a['excerpt']))
 save('search/index.html',layout('Որոնում','<div class="section-head"><h1>Որոնում</h1></div><form id="search-form" role="search"><label for="query">Որոնել ցուցադրական նյութերում</label><div class="search-row"><input id="query" name="q" type="search" placeholder="Մուտքագրեք բանալի բառ…"><button>Որոնել →</button></div></form><p id="result-count" role="status"></p><div id="results" class="cards"></div>'))
 save('404.html',layout('Էջը չի գտնվել','<div class="article"><h1>404 · Էջը չի գտնվել</h1><p>Հնարավոր է՝ հղումը փոխվել է։</p><a href="/">Գլխավոր էջ →</a></div>'))
-save('data.json',json.dumps(articles,ensure_ascii=False))
+save('data.json',json.dumps([{**a, **({'image': BASE_PATH+a['image']} if a.get('image','').startswith('/') else {})} for a in articles],ensure_ascii=False))
+save('.nojekyll','')
+save('build-config.json',json.dumps({'basePath':BASE_PATH}))
 save('robots.txt','User-agent: *\nDisallow: /\n')
 print(f'Built {len(articles)} articles, {len(CATS)} sections. Demo indexing disabled.')

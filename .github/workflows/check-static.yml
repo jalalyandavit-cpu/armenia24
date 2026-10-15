@@ -1,0 +1,20 @@
+name: Check static GitHub Pages site
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild GitHub Pages files
+        run: python3 scripts/export_pages.py
+      - name: Check all static URLs and assets
+        run: python3 scripts/check.py .
+      - name: Check JavaScript syntax
+        run: node --check app.js
+      - name: Ensure tracked static files match sources
+        run: git diff --exit-code

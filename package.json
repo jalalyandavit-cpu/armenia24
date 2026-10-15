@@ -1,1 +1,13 @@
-{"name":"armenia24","version":"1.0.0","private":true,"scripts":{"build":"python3 scripts/build.py","dev":"python3 scripts/serve.py","preview":"python3 scripts/serve.py","test":"python3 scripts/check.py"}}
+{
+  "name": "armenia24",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "python3 scripts/build.py",
+    "dev": "python3 scripts/serve.py",
+    "preview": "python3 scripts/serve.py",
+    "test": "python3 scripts/check.py",
+    "build:pages": "python3 scripts/export_pages.py",
+    "test:pages": "python3 scripts/check.py ."
+  }
+}
